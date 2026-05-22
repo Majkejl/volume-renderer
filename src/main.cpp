@@ -12,6 +12,19 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+// On systems with switchable graphics, ask the driver to pick the
+// high-performance discrete GPU. Otherwise the GL context may be created on the
+// integrated GPU; if the display is driven by the discrete GPU, the window then
+// presents black (rendering succeeds, but on the wrong adapter). These exported
+// symbols are read by the NVIDIA / AMD drivers at process start, ignored on
+// single-GPU systems. They must be exported from the executable itself.
+#ifdef _WIN32
+extern "C" {
+__declspec(dllexport) unsigned long NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
+
 namespace {
 
 constexpr int kInitialWidth = 1280;
