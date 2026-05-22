@@ -1,0 +1,44 @@
+# Build output
+/build/
+/out/
+/cmake-build-*/
+[Bb]uild/
+
+# CMake / Conan generated
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+conan.lock
+graph_info.json
+conandata.yml.lock
+
+# Compiled objects / binaries
+*.obj
+*.o
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.a
+*.dll
+*.so
+*.dylib
+*.exp
+
+# IDE / editor
+/.vs/
+/.vscode/
+/.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Claude / agent tooling — not part of the project deliverable
+/.claude/
+/CLAUDE.md

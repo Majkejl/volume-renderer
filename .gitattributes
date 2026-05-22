@@ -1,0 +1,9 @@
+# Normalize line endings: store text as LF in the repo and check out as LF on
+# all platforms, so Windows and Linux builds (D1) see identical sources.
+* text=auto eol=lf
+
+# Binary assets must not be line-ending normalized.
+*.png binary
+*.jpg binary
+*.ttf binary
+*.mrc binary

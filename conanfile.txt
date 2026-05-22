@@ -1,0 +1,17 @@
+[requires]
+glfw/3.4
+glad/2.0.8
+glm/1.0.1
+imgui/1.92.8
+gtest/1.16.0
+
+[options]
+# Generate an OpenGL 4.3 core-profile loader. KHR_debug (used for GL error
+# reporting) is part of core 4.3, so no extra extensions are needed.
+glad/*:gl_profile=core
+glad/*:gl_version=4.3
+glad/*:extensions=
+
+[generators]
+CMakeDeps
+CMakeToolchain
