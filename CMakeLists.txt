@@ -26,6 +26,7 @@ find_package(GTest REQUIRED)
 # --- Main executable ---------------------------------------------------------
 add_executable(volume_renderer
     src/main.cpp
+    src/gfx/Camera.cpp
     src/gfx/FullscreenQuad.cpp
     src/gfx/Shader.cpp
     src/gfx/ShaderSource.cpp)

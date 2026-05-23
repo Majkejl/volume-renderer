@@ -1,8 +1,9 @@
 // Volume Renderer — application entry point.
 //
-// Milestone M0: open an OpenGL 4.3 core-profile window and clear it to a solid
-// colour every frame. This file intentionally contains no abstractions yet; the
-// Shader / Camera / VolumeRenderer classes are introduced in later phases.
+// Creates an OpenGL 4.3 core-profile window, builds the shader pipeline and a
+// fullscreen quad, and drives an orbit camera from mouse input. The fragment
+// shader currently visualizes per-pixel ray directions; the ray-march lands in
+// a later milestone.
 
 #include <cstdlib>
 #include <exception>
@@ -13,6 +14,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include "gfx/Camera.h"
 #include "gfx/FullscreenQuad.h"
 #include "gfx/Shader.h"
 #include "gfx/ShaderSource.h"
@@ -58,6 +60,58 @@ void APIENTRY glDebugCallback(GLenum source, GLenum type, GLuint id, GLenum seve
               << " severity=" << severity << ")\n";
 }
 #endif
+
+// Mouse-driven orbit state. It lives behind the GLFW window user pointer so the
+// event-driven (hence frame-rate-independent) input callbacks can reach the
+// camera without globals.
+struct OrbitInput {
+    vr::Camera* camera = nullptr;
+    bool dragging = false;
+    double lastX = 0.0;
+    double lastY = 0.0;
+};
+
+OrbitInput* inputFrom(GLFWwindow* window) {
+    return static_cast<OrbitInput*>(glfwGetWindowUserPointer(window));
+}
+
+void cursorPosCallback(GLFWwindow* window, double x, double y) {
+    OrbitInput* input = inputFrom(window);
+    if (input == nullptr) {
+        return;
+    }
+    if (input->dragging && input->camera != nullptr) {
+        const float dx = static_cast<float>(x - input->lastX);
+        const float dy = static_cast<float>(y - input->lastY);
+        constexpr float kRadiansPerPixel = 0.005f; // drag sensitivity
+        input->camera->orbit(-dx * kRadiansPerPixel, -dy * kRadiansPerPixel);
+    }
+    input->lastX = x;
+    input->lastY = y;
+}
+
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int /*mods*/) {
+    if (button != GLFW_MOUSE_BUTTON_LEFT) {
+        return;
+    }
+    OrbitInput* input = inputFrom(window);
+    if (input == nullptr) {
+        return;
+    }
+    if (action == GLFW_PRESS) {
+        input->dragging = true;
+        glfwGetCursorPos(window, &input->lastX, &input->lastY); // anchor the drag
+    } else if (action == GLFW_RELEASE) {
+        input->dragging = false;
+    }
+}
+
+void scrollCallback(GLFWwindow* window, double /*xoffset*/, double yoffset) {
+    OrbitInput* input = inputFrom(window);
+    if (input != nullptr && input->camera != nullptr) {
+        input->camera->zoom(static_cast<float>(yoffset));
+    }
+}
 
 } // namespace
 
@@ -116,6 +170,14 @@ int main() {
 
     glClearColor(kClearColor[0], kClearColor[1], kClearColor[2], kClearColor[3]);
 
+    vr::Camera camera;
+    OrbitInput input;
+    input.camera = &camera;
+    glfwSetWindowUserPointer(window, &input);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetCursorPosCallback(window, cursorPosCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+
     int exitCode = EXIT_SUCCESS;
     try {
         // Build the shader program and quad while the context is current. The
@@ -136,10 +198,15 @@ int main() {
             int fbHeight = 0;
             glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
             glViewport(0, 0, fbWidth, fbHeight);
+            if (fbHeight > 0) {
+                camera.setAspect(static_cast<float>(fbWidth) / static_cast<float>(fbHeight));
+            }
 
             glClear(GL_COLOR_BUFFER_BIT);
 
             shader.use();
+            shader.setMat4("uInvViewProj", camera.inverseViewProjection());
+            shader.setVec3("uCameraPos", camera.position());
             quad.draw();
 
             glfwSwapBuffers(window);
