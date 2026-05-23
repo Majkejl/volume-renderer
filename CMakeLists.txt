@@ -24,7 +24,18 @@ find_package(imgui REQUIRED)
 find_package(GTest REQUIRED)
 
 # --- Main executable ---------------------------------------------------------
-add_executable(volume_renderer src/main.cpp)
+add_executable(volume_renderer
+    src/main.cpp
+    src/gfx/FullscreenQuad.cpp
+    src/gfx/Shader.cpp
+    src/gfx/ShaderSource.cpp)
+target_include_directories(volume_renderer PRIVATE src)
+
+# Bake the source-tree shaders directory in so the app loads GLSL straight from
+# the build tree; ShaderSource falls back to a "shaders/" dir for deployment.
+target_compile_definitions(volume_renderer
+    PRIVATE VR_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+
 target_link_libraries(volume_renderer
     PRIVATE
         glfw

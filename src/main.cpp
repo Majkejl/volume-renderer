@@ -5,12 +5,17 @@
 // Shader / Camera / VolumeRenderer classes are introduced in later phases.
 
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 
 #include <glad/gl.h> // must precede the GLFW header
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+#include "gfx/FullscreenQuad.h"
+#include "gfx/Shader.h"
+#include "gfx/ShaderSource.h"
 
 // On systems with switchable graphics, ask the driver to pick the
 // high-performance discrete GPU. Otherwise the GL context may be created on the
@@ -111,25 +116,42 @@ int main() {
 
     glClearColor(kClearColor[0], kClearColor[1], kClearColor[2], kClearColor[3]);
 
-    while (glfwWindowShouldClose(window) == GLFW_FALSE) {
-        glfwPollEvents();
+    int exitCode = EXIT_SUCCESS;
+    try {
+        // Build the shader program and quad while the context is current. The
+        // enclosing scope guarantees these GL resources are destroyed (their
+        // destructors call glDelete*) before the context is torn down below.
+        const vr::Shader shader(vr::shaderPath("raycast.vert"), vr::shaderPath("raycast.frag"));
+        const vr::FullscreenQuad quad;
 
-        // ESC closes the window, alongside the title-bar close button.
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        while (glfwWindowShouldClose(window) == GLFW_FALSE) {
+            glfwPollEvents();
+
+            // ESC closes the window, alongside the title-bar close button.
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+            }
+
+            int fbWidth = 0;
+            int fbHeight = 0;
+            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+            glViewport(0, 0, fbWidth, fbHeight);
+
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            shader.use();
+            quad.draw();
+
+            glfwSwapBuffers(window);
         }
-
-        int fbWidth = 0;
-        int fbHeight = 0;
-        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        glViewport(0, 0, fbWidth, fbHeight);
-
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glfwSwapBuffers(window);
+    } catch (const std::exception& error) {
+        // Setup boundaries (file read, shader compile/link) may throw; report
+        // with context and exit cleanly instead of terminating.
+        std::cerr << "Fatal: " << error.what() << '\n';
+        exitCode = EXIT_FAILURE;
     }
 
     glfwDestroyWindow(window);
     glfwTerminate();
-    return EXIT_SUCCESS;
+    return exitCode;
 }
