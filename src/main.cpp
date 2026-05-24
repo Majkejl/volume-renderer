@@ -1,9 +1,9 @@
 // Volume Renderer — application entry point.
 //
 // Creates an OpenGL 4.3 core-profile window, builds the shader pipeline and a
-// fullscreen quad, and drives an orbit camera from mouse input. The fragment
-// shader currently visualizes per-pixel ray directions; the ray-march lands in
-// a later milestone.
+// fullscreen quad, generates a synthetic volume, and uploads it to a 3D texture.
+// The fragment shader currently shows a fixed slice of the volume; the orbit
+// camera (mouse-driven) returns to drive the ray-march in a later milestone.
 
 #include <cstdlib>
 #include <exception>
@@ -18,6 +18,9 @@
 #include "gfx/FullscreenQuad.h"
 #include "gfx/Shader.h"
 #include "gfx/ShaderSource.h"
+#include "gfx/Texture3D.h"
+#include "volume/SyntheticVolume.h"
+#include "volume/VolumeData.h"
 
 // On systems with switchable graphics, ask the driver to pick the
 // high-performance discrete GPU. Otherwise the GL context may be created on the
@@ -186,6 +189,13 @@ int main() {
         const vr::Shader shader(vr::shaderPath("raycast.vert"), vr::shaderPath("raycast.frag"));
         const vr::FullscreenQuad quad;
 
+        // Synthetic volume uploaded to a 3D texture. The orbit camera stays wired
+        // for input but is dormant this milestone: the debug shader shows a fixed
+        // screen-space slice. The camera drives the ray-march through this texture
+        // in the next milestone.
+        const vr::VolumeData volume = vr::makeGaussianBlob(128, 128, 128);
+        const vr::Texture3D volumeTexture(volume);
+
         while (glfwWindowShouldClose(window) == GLFW_FALSE) {
             glfwPollEvents();
 
@@ -198,15 +208,12 @@ int main() {
             int fbHeight = 0;
             glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
             glViewport(0, 0, fbWidth, fbHeight);
-            if (fbHeight > 0) {
-                camera.setAspect(static_cast<float>(fbWidth) / static_cast<float>(fbHeight));
-            }
 
             glClear(GL_COLOR_BUFFER_BIT);
 
             shader.use();
-            shader.setMat4("uInvViewProj", camera.inverseViewProjection());
-            shader.setVec3("uCameraPos", camera.position());
+            volumeTexture.bind(GL_TEXTURE0);
+            shader.setInt("uVolume", 0);
             quad.draw();
 
             glfwSwapBuffers(window);

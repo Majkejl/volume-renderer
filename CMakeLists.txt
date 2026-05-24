@@ -29,7 +29,10 @@ add_executable(volume_renderer
     src/gfx/Camera.cpp
     src/gfx/FullscreenQuad.cpp
     src/gfx/Shader.cpp
-    src/gfx/ShaderSource.cpp)
+    src/gfx/ShaderSource.cpp
+    src/gfx/Texture3D.cpp
+    src/volume/SyntheticVolume.cpp
+    src/volume/VolumeData.cpp)
 target_include_directories(volume_renderer PRIVATE src)
 
 # Bake the source-tree shaders directory in so the app loads GLSL straight from
