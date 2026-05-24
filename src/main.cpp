@@ -1,9 +1,8 @@
 // Volume Renderer — application entry point.
 //
 // Creates an OpenGL 4.3 core-profile window, builds the shader pipeline and a
-// fullscreen quad, generates a synthetic volume, and uploads it to a 3D texture.
-// The fragment shader currently shows a fixed slice of the volume; the orbit
-// camera (mouse-driven) returns to drive the ray-march in a later milestone.
+// fullscreen quad, generates a synthetic volume and uploads it to a 3D texture,
+// then ray-marches it in the fragment shader with a mouse-driven orbit camera.
 
 #include <cstdlib>
 #include <exception>
@@ -43,6 +42,12 @@ constexpr int kInitialHeight = 720;
 // A distinct, non-black clear colour so a successful frame is unmistakable
 // (the M0 exit criterion). Muted slate blue, RGBA in [0,1].
 constexpr float kClearColor[4] = {0.12f, 0.14f, 0.18f, 1.0f};
+
+// Ray-march step in texture-space units (the volume is a unit cube). With the
+// placeholder density-as-opacity mapping the image is step-dependent (a later
+// milestone adds opacity correction); this default gives a clear cloud. The UI
+// exposes it later too.
+constexpr float kStepSize = 0.02f;
 
 void glfwErrorCallback(int code, const char* description) {
     std::cerr << "[GLFW] error " << code << ": " << description << '\n';
@@ -189,10 +194,8 @@ int main() {
         const vr::Shader shader(vr::shaderPath("raycast.vert"), vr::shaderPath("raycast.frag"));
         const vr::FullscreenQuad quad;
 
-        // Synthetic volume uploaded to a 3D texture. The orbit camera stays wired
-        // for input but is dormant this milestone: the debug shader shows a fixed
-        // screen-space slice. The camera drives the ray-march through this texture
-        // in the next milestone.
+        // Synthetic volume uploaded to a 3D texture and ray-marched in the
+        // fragment shader; the orbit camera drives the per-pixel rays.
         const vr::VolumeData volume = vr::makeGaussianBlob(128, 128, 128);
         const vr::Texture3D volumeTexture(volume);
 
@@ -208,12 +211,18 @@ int main() {
             int fbHeight = 0;
             glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
             glViewport(0, 0, fbWidth, fbHeight);
+            if (fbHeight > 0) {
+                camera.setAspect(static_cast<float>(fbWidth) / static_cast<float>(fbHeight));
+            }
 
             glClear(GL_COLOR_BUFFER_BIT);
 
             shader.use();
             volumeTexture.bind(GL_TEXTURE0);
             shader.setInt("uVolume", 0);
+            shader.setMat4("uInvViewProj", camera.inverseViewProjection());
+            shader.setVec3("uCameraPos", camera.position());
+            shader.setFloat("uStepSize", kStepSize);
             quad.draw();
 
             glfwSwapBuffers(window);
