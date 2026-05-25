@@ -5,9 +5,27 @@ scalar volume (synthetic first, real electron-microscopy data later) in a single
 fragment-shader pass through a 3D texture, with a transfer function,
 gradient-based lighting, an orbit camera, and an interactive parameter UI.
 
-> **Status:** early scaffolding (M0). The window and build system are in place;
-> the ray-caster, transfer function, lighting, and UI land in subsequent
-> milestones. Screenshots and dataset provenance will be added as features land.
+> **Status:** in development. The renderer ray-casts a synthetic volume in a
+> single fragment-shader pass — orbit camera, slab-based box traversal,
+> front-to-back compositing, and a colour/opacity transfer function with
+> step-size-independent opacity are all working. Still to come: gradient-based
+> lighting, an interactive parameter UI, and loading a real electron-microscopy
+> dataset. Screenshots and dataset provenance will be added as those features land.
+
+## Milestones
+
+The project is built in ordered milestones; each maps to a commit tagged `[M#]`.
+
+- [x] **M0** — Build system, dependencies, and a cleared OpenGL window
+- [x] **M1** — Shader pipeline and fullscreen-quad rendering
+- [x] **M2** — Orbit camera and per-pixel ray generation
+- [x] **M3** — Synthetic volume generation and 3D-texture upload
+- [x] **M4** — Single-pass ray-casting (emission–absorption)
+- [x] **M5** — Transfer function with opacity correction
+- [ ] **M6** — Gradient-based Blinn-Phong lighting
+- [ ] **M7** — Interactive parameter UI
+- [ ] **M8** — Load and render a real cryo-EM volume
+- [ ] **M9** — Marching-cubes isosurface extraction (stretch)
 
 ## Requirements
 
