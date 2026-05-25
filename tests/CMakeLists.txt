@@ -9,8 +9,10 @@ add_executable(vr_tests
     test_synthetic_volume.cpp
     test_ray_box.cpp
     test_compositing.cpp
+    test_transfer_function.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/Camera.cpp
     ${CMAKE_SOURCE_DIR}/src/gfx/ShaderSource.cpp
+    ${CMAKE_SOURCE_DIR}/src/render/TransferFunction.cpp
     ${CMAKE_SOURCE_DIR}/src/volume/SyntheticVolume.cpp
     ${CMAKE_SOURCE_DIR}/src/volume/VolumeData.cpp)
 target_include_directories(vr_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)

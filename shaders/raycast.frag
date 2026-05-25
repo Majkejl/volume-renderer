@@ -1,11 +1,14 @@
 #version 430 core
 
-// Milestone M4 fragment shader: single-pass volume ray-casting.
+// Milestone M5 fragment shader: single-pass volume ray-casting with a transfer
+// function.
 //
 // For each pixel: reconstruct a world-space ray from the camera, shift it into
 // the volume's texture space, intersect the unit box, then march front-to-back
-// accumulating colour and opacity (emission–absorption). Density maps directly
-// to greyscale + opacity here; a transfer function and lighting come later.
+// accumulating colour and opacity (emission–absorption). Each sample's density
+// is mapped to RGBA through the transfer-function LUT, with opacity corrected
+// for step size so apparent brightness is independent of the step count.
+// Gradient lighting comes later.
 //
 // Spaces: vUv is [0,1] across the viewport -> NDC [-1,1]. The volume is the unit
 // cube centred at the world origin, so texture space = world + 0.5. Texture
@@ -16,13 +19,18 @@ in vec2 vUv;
 out vec4 fragColor;
 
 uniform sampler3D uVolume;
-uniform mat4 uInvViewProj; // inverse(projection * view)
-uniform vec3 uCameraPos;   // world-space eye
-uniform float uStepSize;   // march step in texture-space units
+uniform sampler1D uTransfer; // density -> RGBA lookup table
+uniform mat4 uInvViewProj;   // inverse(projection * view)
+uniform vec3 uCameraPos;     // world-space eye
+uniform float uStepSize;     // march step in texture-space units
 
 const vec3 kBoxMin = vec3(0.0);
 const vec3 kBoxMax = vec3(1.0);
 const vec3 kBackground = vec3(0.04, 0.05, 0.07);
+
+// Reference step the transfer-function opacities are authored against; the
+// correction below rescales opacity when the actual step differs.
+const float kRefStep = 0.01;
 
 // Slab-method ray–box intersection (mirrors render/RayBox.h). On a hit, tNear is
 // clamped to >= 0 so a camera inside the box marches from its own position.
@@ -62,11 +70,13 @@ void main() {
         vec3 pos = rayOrigin + t * rayDir;
         float density = texture(uVolume, pos).r;
 
-        // Placeholder mapping: greyscale colour, opacity proportional to density.
-        vec4 src = vec4(vec3(density), density);
+        // Map density to colour/opacity, then correct opacity for the step size
+        // so the result does not change as the step count varies.
+        vec4 tf = texture(uTransfer, density);
+        float alpha = 1.0 - pow(1.0 - tf.a, uStepSize / kRefStep);
 
-        dst.rgb += (1.0 - dst.a) * src.a * src.rgb;
-        dst.a += (1.0 - dst.a) * src.a;
+        dst.rgb += (1.0 - dst.a) * alpha * tf.rgb;
+        dst.a += (1.0 - dst.a) * alpha;
         if (dst.a >= 0.99) {
             break; // early ray termination
         }

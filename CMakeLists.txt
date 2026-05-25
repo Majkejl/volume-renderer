@@ -30,7 +30,9 @@ add_executable(volume_renderer
     src/gfx/FullscreenQuad.cpp
     src/gfx/Shader.cpp
     src/gfx/ShaderSource.cpp
+    src/gfx/Texture1D.cpp
     src/gfx/Texture3D.cpp
+    src/render/TransferFunction.cpp
     src/volume/SyntheticVolume.cpp
     src/volume/VolumeData.cpp)
 target_include_directories(volume_renderer PRIVATE src)

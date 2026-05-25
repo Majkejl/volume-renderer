@@ -2,22 +2,30 @@
 //
 // Creates an OpenGL 4.3 core-profile window, builds the shader pipeline and a
 // fullscreen quad, generates a synthetic volume and uploads it to a 3D texture,
-// then ray-marches it in the fragment shader with a mouse-driven orbit camera.
+// then ray-marches it in the fragment shader — shading each sample through a
+// transfer function — with a mouse-driven orbit camera.
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <vector>
 
 #include <glad/gl.h> // must precede the GLFW header
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+
 #include "gfx/Camera.h"
 #include "gfx/FullscreenQuad.h"
 #include "gfx/Shader.h"
 #include "gfx/ShaderSource.h"
+#include "gfx/Texture1D.h"
 #include "gfx/Texture3D.h"
+#include "render/TransferFunction.h"
 #include "volume/SyntheticVolume.h"
 #include "volume/VolumeData.h"
 
@@ -43,11 +51,27 @@ constexpr int kInitialHeight = 720;
 // (the M0 exit criterion). Muted slate blue, RGBA in [0,1].
 constexpr float kClearColor[4] = {0.12f, 0.14f, 0.18f, 1.0f};
 
-// Ray-march step in texture-space units (the volume is a unit cube). With the
-// placeholder density-as-opacity mapping the image is step-dependent (a later
-// milestone adds opacity correction); this default gives a clear cloud. The UI
-// exposes it later too.
-constexpr float kStepSize = 0.02f;
+// Ray-march step in texture-space units (the volume is a unit cube). The shader
+// opacity-corrects against its reference step, so apparent brightness is
+// independent of this value; it is set fine for a smooth image. The UI exposes
+// it later.
+constexpr float kStepSize = 0.005f;
+
+// Transfer-function lookup-table resolution (256-entry RGBA, the standard size).
+constexpr std::size_t kTransferLutSize = 256;
+
+// Default transfer function: empty space is transparent, then a blue -> cyan ->
+// yellow -> white ramp of increasing opacity, so denser regions read brighter
+// and distinct density shells take distinct colours. The UI edits this later.
+std::vector<vr::TransferControlPoint> makeDefaultTransferPoints() {
+    return {
+        {0.00f, glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)},
+        {0.25f, glm::vec4(0.20f, 0.30f, 0.90f, 0.02f)}, // low density: blue, near-transparent
+        {0.50f, glm::vec4(0.10f, 0.85f, 0.85f, 0.06f)}, // mid: cyan
+        {0.75f, glm::vec4(1.00f, 0.70f, 0.15f, 0.20f)}, // high: orange
+        {1.00f, glm::vec4(1.00f, 1.00f, 1.00f, 0.70f)}, // core: white, opaque
+    };
+}
 
 void glfwErrorCallback(int code, const char* description) {
     std::cerr << "[GLFW] error " << code << ": " << description << '\n';
@@ -199,6 +223,11 @@ int main() {
         const vr::VolumeData volume = vr::makeGaussianBlob(128, 128, 128);
         const vr::Texture3D volumeTexture(volume);
 
+        // Transfer function: control points -> RGBA LUT -> 1D texture.
+        const std::vector<std::uint8_t> transferLut =
+            vr::buildTransferLut(makeDefaultTransferPoints(), kTransferLutSize);
+        const vr::Texture1D transferTexture(transferLut, kTransferLutSize);
+
         while (glfwWindowShouldClose(window) == GLFW_FALSE) {
             glfwPollEvents();
 
@@ -220,6 +249,8 @@ int main() {
             shader.use();
             volumeTexture.bind(GL_TEXTURE0);
             shader.setInt("uVolume", 0);
+            transferTexture.bind(GL_TEXTURE1);
+            shader.setInt("uTransfer", 1);
             shader.setMat4("uInvViewProj", camera.inverseViewProjection());
             shader.setVec3("uCameraPos", camera.position());
             shader.setFloat("uStepSize", kStepSize);
